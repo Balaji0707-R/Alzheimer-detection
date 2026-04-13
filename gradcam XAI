@@ -1,0 +1,64 @@
+!pip install grad-cam -q
+
+import torch
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from torchvision.models import resnet34
+import torch.nn as nn
+from torchvision import transforms
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
+
+# Load model
+model = resnet34()
+model.fc = nn.Linear(model.fc.in_features, 3)
+
+model.load_state_dict(torch.load(
+    "/kaggle/input/notebooks/velavansekar/alzheimer-detection-project/final_model.pth",
+    map_location="cuda"
+))
+
+model = model.cuda()
+model.eval()
+
+classes = ["AD", "CN", "MCI"]
+
+# CHANGE THIS PATH to your uploaded image
+image_path = "/kaggle/input/datasets/velavansekar/sample-2/images.jpg"
+
+img = cv2.imread(image_path)
+img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+transform = transforms.Compose([
+    transforms.ToPILImage(),
+    transforms.Resize((224,224)),
+    transforms.ToTensor()
+])
+
+input_tensor = transform(img).unsqueeze(0).cuda()
+
+outputs = model(input_tensor)
+_, pred = torch.max(outputs, 1)
+
+predicted_class = classes[pred.item()]
+
+print(f"\n✅ Predicted Diagnosis: {predicted_class}")
+
+# GradCAM
+target_layer = model.layer4[-1]
+
+cam = GradCAM(model=model, target_layers=[target_layer])
+grayscale_cam = cam(input_tensor=input_tensor)[0]
+
+img_resized = cv2.resize(img, (224,224))
+rgb_img = img_resized.astype(np.float32) / 255.0
+
+visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
+
+plt.imshow(visualization)
+plt.title(f"Grad-CAM Explanation ({predicted_class})")
+plt.axis("off")
+plt.show()
+
+print("📊 Red regions show important diagnostic regions.")
