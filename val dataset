@@ -1,0 +1,14 @@
+val_path = "/kaggle/input/datasets/velavansekar/adni-mri-alzheimer-dataset-train-val-test-split/val/val"
+save_path = "/kaggle/working/processed/val"
+
+for cls in ["CN", "MCI", "AD"]:
+    os.makedirs(os.path.join(save_path, cls), exist_ok=True)
+
+for category in os.listdir(val_path):
+    for file in os.listdir(os.path.join(val_path, category)):
+        try:
+            process_and_save(os.path.join(val_path, category, file), category)
+        except:
+            continue
+
+print("Validation dataset ready ✅")
